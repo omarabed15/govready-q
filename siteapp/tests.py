@@ -52,6 +52,7 @@ class SeleniumTest(StaticLiveServerTestCase):
         # non-test settings for the URL assigned by the LiveServerTestCase server.
         settings.ALLOWED_HOSTS = ['localhost', 'testserver']
         settings.SITE_ROOT_URL = cls.live_server_url
+        settings.DEBUG = True
 
         # In order for these tests to succeed when not connected to the
         # Internet, disable email deliverability checks which query DNS.
@@ -69,7 +70,7 @@ class SeleniumTest(StaticLiveServerTestCase):
         else:
             options.add_argument("--window-size=" + ",".join(str(dim) for dim in SeleniumTest.window_geometry))
 
-        
+
         # enable Selenium support for downloads
         
         cls.download_path = temp_path = pathlib.Path(tempfile.gettempdir())
@@ -79,8 +80,13 @@ class SeleniumTest(StaticLiveServerTestCase):
             "download.directory_upgrade": True,
             "safebrowsing.enabled": True
         })
-        cls.browser = selenium.webdriver.Chrome(chrome_options=options)
-        cls.browser.implicitly_wait(3) # seconds
+        # Set up selenium Chrome browser for Windows or Linux
+        from platform import uname, system
+        if system() == "Windows" or 'Microsoft' in uname().release:
+            cls.browser = selenium.webdriver.Chrome(executable_path='chromedriver.exe', options=options)
+        else:
+            cls.browser = selenium.webdriver.Chrome(chrome_options=options)
+        cls.browser.implicitly_wait(3) # seconds        cls.browser.implicitly_wait(3) # seconds
 
         
         # Clean up and quit tests if Q is in SSO mode
