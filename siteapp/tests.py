@@ -326,7 +326,7 @@ class OrganizationSiteFunctionalTests(SeleniumTest):
         # with other credentials.
         self.browser.get(self.url("/"))
         self.assertRegex(self.browser.title, "Welcome to Compliance Automation")
-        self.click_element("li#tab-signin")
+        self.click_element("#tab-signin")
         self.fill_field("#id_login", username or self.user.username)
         self.fill_field("#id_password", password or self.user.clear_password)
         self.click_element("form#login_form button[type=submit]")
@@ -376,7 +376,7 @@ class GeneralTests(OrganizationSiteFunctionalTests):
         self.click_element('#button-sign-in')
         var_sleep(.5) # wait for page to load
 
-        self.assertRegex(self.browser.title, "Sign In")
+        self.assertRegex(self.browser.title, "Welcome to Compliance Automation")
 
         # TODO check if the below should still be happening
         # Test that an allauth confirmation email was sent.
@@ -550,6 +550,7 @@ class GeneralTests(OrganizationSiteFunctionalTests):
         self.browser.execute_script("$('#invite-user-email').parent().toggle(true)")
 
         do_invitation(self.user2.email)
+        self.click_element("#tab-signin")
         self.fill_field("#id_login", self.user2.username)
         self.fill_field("#id_password", self.user2.clear_password)
         self.click_element("form button.primaryAction")
