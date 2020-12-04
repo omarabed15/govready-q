@@ -1,15 +1,21 @@
+import requests
+
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.utils.crypto import get_random_string
 from django.contrib.auth.models import Permission
+from django.core.files.uploadedfile import SimpleUploadedFile
 
-from discussion.validators import validate_file_extension
+from discussion.validators import VALID_EXTS, validate_file_extension
 from siteapp.models import User, ProjectMembership, Organization, Portfolio
 from siteapp.tests import SeleniumTest, var_sleep
 
 from selenium.common.exceptions import NoSuchElementException
 
 import os
+
+FIXTURE_DIR="fixtures"
+TEST_FILENAME="test"
 
 class DiscussionTests(SeleniumTest):
 
@@ -102,6 +108,76 @@ class DiscussionTests(SeleniumTest):
         # Start the task.
         self.click_element('#question-simple_module')
 
+    def _get_browser_cookies(self):
+        # Gets the browser cookies and returns them
+        browser_cookies = self.browser.get_cookies()
+        cookies = {}
+        for browser_cookie in browser_cookies:
+            cookies[browser_cookie["name"]] = browser_cookie["value"]
+        return cookies
+
+    def test_validate_file_extension(self):
+
+        # Load test file paths
+        test_file_paths = []
+        random_content_type = "random/type"
+        random_ext = ".random"
+
+        for ext,content_type in VALID_EXTS.items():
+            print("Testing file type {}".format(ext))
+            test_file_name = "".join([TEST_FILENAME, ext])
+            test_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                FIXTURE_DIR,
+                test_file_name
+            )
+            test_file_contents = b''
+
+            # Read in test file
+            with open(test_path, "rb") as test_file:
+                test_file_contents = test_file.read()
+
+            # Test valid file extension, content type
+            file_model = SimpleUploadedFile(
+                            test_file_name,
+                            test_file_contents,
+                            content_type=content_type
+                        )
+            is_valid = validate_file_extension(file_model)
+            self.assertIsNone(is_valid)
+
+            # Test valid file extension, mixmatched but valid content type
+            other_types_list = list(VALID_EXTS.values())
+            other_types_list.remove(content_type)
+            random_type = other_types_list[-1]
+
+            file_model = SimpleUploadedFile(
+                            test_file_name,
+                            test_file_contents,
+                            content_type=random_type
+                        )
+            is_valid = validate_file_extension(file_model)
+            self.assertIsNotNone(is_valid)
+
+            # Test valid file extension, mixmatched unsupported type
+            file_model = SimpleUploadedFile(
+                            test_file_name,
+                            test_file_contents,
+                            content_type=random_content_type
+                        )
+            is_valid = validate_file_extension(file_model)
+            self.assertIsNotNone(is_valid)
+
+            # Test invalid file extension, but valid content type
+            file_model = SimpleUploadedFile(
+                            "".join(test_file_name, random_ext),
+                            test_file_contents,
+                            content_type=content_type
+                        )
+            is_valid = validate_file_extension(file_model)
+            self.assertIsNotNone(is_valid)
+
+
     def test_discussion(self):
 
         # Log in and create a new project.
@@ -153,11 +229,13 @@ class DiscussionTests(SeleniumTest):
         # Test file attachments
 
         # We need to upload a file that we know exists.
+        test_file_name = "".join([TEST_FILENAME, ".png"])
         testFilePath = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            'fixtures',
-            'testimage.png'
+            FIXTURE_DIR,
+            test_file_name
         )
+        
 
         self.fill_field("#discussion-attach-file", testFilePath)
         var_sleep(1)
@@ -168,14 +246,19 @@ class DiscussionTests(SeleniumTest):
         img = self.browser.find_element_by_css_selector('.comment[data-id="4"] .comment-text p img')
         self.assertIsNotNone(img)
 
-        # Test that the image actually exists.
-        imageFile = img.get_attribute('src')
-        imageFileValidation = validate_file_extension(imageFile)
+        # Test that valid PNG image actually exists with valid content type.
+        image_url = img.get_attribute('src')
+        cookies = self._get_browser_cookies()
+        response = requests.get(image_url,cookies=cookies)
+        image_contents = response.content
+        
+        file_model = SimpleUploadedFile(test_file_name, image_contents, content_type="image/png")
+        imageFileValidation = validate_file_extension(file_model)
         self.assertIsNone(imageFileValidation)
 
         result = self.browser.execute_script("""var http = new XMLHttpRequest();
             http.open('HEAD', '{}', false);
             http.send();
-            return http.status!=404;""".format(imageFile))
+            return http.status!=404;""".format(image_url))
 
         self.assertTrue(result)
