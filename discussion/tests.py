@@ -157,7 +157,7 @@ class DiscussionTests(SeleniumTest):
                             content_type=random_type
                         )
             is_valid = validate_file_extension(file_model)
-            #self.assertIsNotNone(is_valid)
+            self.assertIsNotNone(is_valid)
 
             # Test valid file extension, mixmatched unsupported type
             file_model = SimpleUploadedFile(
@@ -166,7 +166,7 @@ class DiscussionTests(SeleniumTest):
                             content_type=random_content_type
                         )
             is_valid = validate_file_extension(file_model)
-            #self.assertIsNotNone(is_valid)
+            self.assertIsNotNone(is_valid)
 
             # Test invalid file extension, but valid content type
             file_model = SimpleUploadedFile(
@@ -175,7 +175,7 @@ class DiscussionTests(SeleniumTest):
                             content_type=content_type
                         )
             is_valid = validate_file_extension(file_model)
-            #self.assertIsNotNone(is_valid)
+            self.assertIsNotNone(is_valid)
 
 
     def test_discussion(self):
